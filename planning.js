@@ -2216,40 +2216,45 @@ function enhanceStats(){
     .observe(panel, {childList: true, subtree: true});
 })();
 
-/* --- Google Sheet « Urgences compagnies » intégré -------------------------
+/* --- Google Sheet « Urgences compagnies » en pop-up -----------------------
    C'est le vrai Sheet (lien de modification) : les modifications sont enregistrées
    directement dans le Sheet par Google, au nom de la personne connectée.
-   Le Sheet n'est chargé que quand le bloc est déplié (ouverture de page plus rapide).
-   Replié / déplié : gardé sur chaque poste. */
+   Chargé à la première ouverture seulement, puis gardé (réouverture instantanée).
+   « Masquer les menus Google » (paramètre rm=minimal) : choix gardé sur chaque poste. */
 (function(){
-  const card = document.getElementById('sheetCard');
-  if(!card) return;
-  const url = card.dataset.sheetUrl || '';
+  const ov = document.getElementById('sheetOverlay');
+  const btn = document.getElementById('btnSheetUrg');
+  if(!ov || !btn) return;
+  const base = ov.dataset.sheetUrl || '';
   const frame = document.getElementById('sheetFrame');
-  const toggle = document.getElementById('btnSheetToggle');
-  const fullBtn = document.getElementById('btnSheetFull');
-  const reloadBtn = document.getElementById('btnSheetReload');
+  const minimal = document.getElementById('sheetMinimal');
   const link = document.getElementById('sheetOpenLink');
-  if(link) link.href = url;
-  function load(force){
-    if(!frame || !url) return;
-    if(force || !frame.getAttribute('src')) frame.src = url;
+  const gidMatch = /[?&#]gid=(\d+)/.exec(base);
+  const hash = gidMatch ? '#gid=' + gidMatch[1] : '';
+  function embedUrl(){
+    const clean = base.split('#')[0];
+    return clean + (minimal && minimal.checked ? (clean.includes('?') ? '&' : '?') + 'rm=minimal' : '') + hash;
   }
-  function setCollapsed(c){
-    card.classList.toggle('collapsed', c);
-    toggle.setAttribute('aria-expanded', c ? 'false' : 'true');
-    plLocal.set('pl-sheet-collapsed', c ? '1' : '0');
-    if(!c) load(false);
+  if(link) link.href = base.split('#')[0] + hash;
+  if(minimal){
+    minimal.checked = plLocal.get('pl-sheet-minimal', '0') === '1';
+    minimal.addEventListener('change', () => {
+      plLocal.set('pl-sheet-minimal', minimal.checked ? '1' : '0');
+      if(frame.getAttribute('src')) frame.src = embedUrl();
+    });
   }
-  function setFull(f){
-    if(f && card.classList.contains('collapsed')) setCollapsed(false);
-    card.classList.toggle('full', f);
-    document.body.classList.toggle('sheet-full-open', f);
-    fullBtn.textContent = f ? '✕ Réduire' : '⤢ Agrandir';
+  function open(){
+    if(!frame.getAttribute('src')) frame.src = embedUrl();
+    ov.classList.add('open');
+    document.body.classList.add('pl-modal-open');
   }
-  setCollapsed(plLocal.get('pl-sheet-collapsed', '0') === '1');
-  toggle.addEventListener('click', () => setCollapsed(!card.classList.contains('collapsed')));
-  fullBtn.addEventListener('click', () => setFull(!card.classList.contains('full')));
-  reloadBtn.addEventListener('click', () => { if(card.classList.contains('collapsed')) setCollapsed(false); load(true); });
-  document.addEventListener('keydown', e => { if(e.key === 'Escape' && card.classList.contains('full')) setFull(false); });
+  function close(){
+    ov.classList.remove('open');
+    document.body.classList.toggle('pl-modal-open', !!document.querySelector('.pl-overlay.open'));
+  }
+  btn.addEventListener('click', open);
+  ov.querySelector('[data-close="sheet"]').addEventListener('click', close);
+  ov.addEventListener('click', e => { if(e.target === ov) close(); });
+  document.getElementById('btnSheetReload').addEventListener('click', () => { frame.src = embedUrl(); });
+  document.addEventListener('keydown', e => { if(e.key === 'Escape' && ov.classList.contains('open')) close(); });
 })();

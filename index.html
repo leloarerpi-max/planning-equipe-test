@@ -650,25 +650,21 @@
   .chart-legend i{ display:inline-block; width:18px; height:0; border-top-width:3px; border-top-style:solid; }
 
 
-  /* Google Sheet intégré (Urgences compagnies) */
-  .sheet-card{ margin-top:14px; background:var(--panel); border:1px solid var(--line-strong); border-radius:var(--radius); }
-  .sheet-head{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; padding:8px 12px; border-bottom:1px solid var(--line); }
-  .sheet-toggle{ display:flex; align-items:center; gap:8px; background:none; border:none; padding:2px 0; color:var(--ink); }
-  .sheet-toggle h2{ font-family:'Fraunces', Georgia, serif; font-weight:600; font-size:17px; margin:0; }
-  .sheet-toggle .chev{ font-size:10px; color:var(--ink-soft); transition:transform .15s ease; display:inline-block; }
-  .sheet-toggle[aria-expanded="true"] .chev{ transform:rotate(90deg); }
-  .sheet-sub{ font-size:12px; color:var(--ink-soft); }
-  .sheet-actions{ margin-left:auto; display:flex; gap:6px; flex-wrap:wrap; }
-  .sheet-actions .btn{ font-size:12px; padding:4px 10px; text-decoration:none; display:inline-flex; align-items:center; }
-  .sheet-note{ margin:0; padding:6px 12px; font-size:11.5px; color:var(--ink-soft); }
-  .sheet-frame-wrap{ height:640px; min-height:300px; resize:vertical; overflow:hidden; border-top:1px solid var(--line); background:#fff; }
+
+  /* Google Sheet « Urgences compagnies » en pop-up */
+  .btn-urg{ background:#F6E9D9 !important; border-color:#B9702E !important; color:#6e4219 !important; font-weight:600; }
+  .btn-urg:hover{ background:#F0DcC2 !important; }
+  .pl-modal-sheet{ max-width:none; width:calc(100vw - 32px); height:calc(100vh - 32px); max-height:none; display:flex; flex-direction:column; overflow:hidden; }
+  #sheetOverlay{ padding:16px; }
+  .sheet-live{ display:inline-flex; align-items:center; gap:6px; font-size:12px; color:var(--teal); font-weight:600; }
+  .sheet-live-dot{ width:7px; height:7px; border-radius:50%; background:var(--teal); }
+  .sheet-minimal{ margin-left:auto; font-size:12px; }
+  .sheet-icons{ display:flex; align-items:center; gap:2px; }
+  .sheet-ib{ width:30px; height:30px; display:inline-flex; align-items:center; justify-content:center; border:1px solid transparent; border-radius:3px; background:transparent; color:var(--ink); font-size:15px; text-decoration:none; padding:0; }
+  .sheet-ib:hover{ background:#fff; border-color:var(--line-strong); }
+  .pl-modal-sheet .pl-close{ margin-left:6px; }
+  .sheet-frame-wrap{ flex:1; min-height:0; background:#fff; }
   .sheet-frame-wrap iframe{ width:100%; height:100%; border:0; display:block; }
-  .sheet-card.collapsed .sheet-body{ display:none; }
-  .sheet-card.collapsed .sheet-head{ border-bottom:none; }
-  .sheet-card.full{ position:fixed; inset:12px; z-index:65; margin:0; display:flex; flex-direction:column; box-shadow:0 18px 50px rgba(0,0,0,.35); }
-  .sheet-card.full .sheet-body{ flex:1; display:flex; flex-direction:column; min-height:0; }
-  .sheet-card.full .sheet-frame-wrap{ flex:1; height:auto; resize:none; }
-  body.sheet-full-open::before{ content:''; position:fixed; inset:0; background:rgba(36,34,32,.45); z-index:64; }
   @media (max-width:700px){
     .pl-actions{ margin-left:0; }
     .pl-side{ max-width:none; }
@@ -726,12 +722,14 @@
     </div>
     <div class="pl-actions">
       <button class="btn btn-primary" id="btnAddTask">+ Tâche</button>
-      <button class="btn" id="btnAddPerson">+ Personne</button>
+      <button class="btn btn-urg" id="btnSheetUrg" title="Ouvrir le Google Sheet des urgences compagnies (GESTION EASY + PREMIUM, Pierrick)">🚨 Urgences cies</button>
       <button class="btn" id="btnStats">📊 Statistiques</button>
       <button class="btn" id="btnJournal">🕒 Journal</button>
       <div class="pl-more">
         <button class="btn" id="btnMore" aria-haspopup="true" aria-expanded="false">Plus ▾</button>
         <div class="pl-more-menu" id="moreMenu" role="menu">
+          <button class="btn-menu" id="btnAddPerson" role="menuitem">👤 Ajouter une personne</button>
+          <div class="pl-menu-sep"></div>
           <button class="btn-menu" id="btnExport" role="menuitem">⬇️ Exporter ce jour</button>
           <button class="btn-menu" id="btnImport" role="menuitem">⬆️ Importer</button>
           <button class="btn-menu" id="btnExportAll" role="menuitem" title="Sauvegarde complète : Planning + tous les onglets (Suivi Excel, Avenants WF, etc.)">💾 Tout exporter (sauvegarde complète)</button>
@@ -772,29 +770,29 @@
     </aside>
   </div>
 
-  <!-- Google Sheet « Urgences compagnies » intégré : c'est le VRAI Sheet (lien de modification),
+
+  <!-- Google Sheet « Urgences compagnies » en pop-up : c'est le VRAI Sheet (lien de modification),
        pas une copie « Publier sur le Web ». Pour changer de Sheet ou d'onglet, modifier data-sheet-url. -->
-  <section class="sheet-card" id="sheetCard"
-    data-sheet-url="https://docs.google.com/spreadsheets/d/1VcJBtwodD6n38rRjPU0umVHsv7aH9DAaoT1y1SVsQSI/edit?gid=317464362#gid=317464362">
-    <div class="sheet-head">
-      <button type="button" class="sheet-toggle" id="btnSheetToggle" aria-expanded="true" aria-controls="sheetBody">
-        <span class="chev" aria-hidden="true">▶</span>
-        <h2>Urgences compagnies</h2>
-      </button>
-      <span class="sheet-sub">GESTION EASY + PREMIUM (Pierrick) · le vrai Google Sheet : ce que tu modifies ici est enregistré directement dedans</span>
-      <div class="sheet-actions">
-        <button type="button" class="btn" id="btnSheetReload" title="Recharger le Sheet">↻ Recharger</button>
-        <button type="button" class="btn" id="btnSheetFull">⤢ Agrandir</button>
-        <a class="btn" id="sheetOpenLink" target="_blank" rel="noopener">Ouvrir dans un nouvel onglet ↗</a>
+  <div class="pl-overlay" id="sheetOverlay"
+    data-sheet-url="https://docs.google.com/spreadsheets/d/1VcJBtwodD6n38rRjPU0umVHsv7aH9DAaoT1y1SVsQSI/edit?gid=317464362">
+    <div class="pl-modal pl-modal-sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
+      <div class="pl-modal-head">
+        <h2 id="sheetTitle">🚨 Urgences compagnies</h2>
+        <span class="hint">GESTION EASY + PREMIUM (Pierrick)</span>
+        <span class="sheet-live"><span class="sheet-live-dot"></span>Enregistré en direct dans le Google Sheet</span>
+        <label class="pl-check sheet-minimal"><input type="checkbox" id="sheetMinimal" /> Masquer les menus Google</label>
+        <div class="sheet-icons">
+          <button type="button" class="sheet-ib" id="btnSheetReload" title="Recharger le Sheet" aria-label="Recharger le Sheet">↻</button>
+          <a class="sheet-ib" id="sheetOpenLink" target="_blank" rel="noopener" title="Ouvrir dans Google Sheets (nouvel onglet)" aria-label="Ouvrir dans Google Sheets">↗</a>
+          <span class="info-dot" tabindex="0" title="C'est le vrai Google Sheet : ce que tu modifies ici est enregistré directement dedans, au nom de ton compte Google. S'il demande de se connecter ou n'est pas modifiable : connecte-toi à ton compte Google dans ce navigateur, puis clique sur ↻. En dernier recours : ↗ pour l'ouvrir dans un nouvel onglet.">i</span>
+        </div>
+        <button class="pl-close" data-close="sheet" aria-label="Fermer">✕</button>
       </div>
-    </div>
-    <div class="sheet-body" id="sheetBody">
-      <p class="sheet-note">Le tableau ne s'affiche pas, demande de se connecter ou n'est pas modifiable ? Connecte-toi à ton compte Google dans ce navigateur puis clique sur « Recharger », ou utilise « Ouvrir dans un nouvel onglet ».</p>
       <div class="sheet-frame-wrap">
-        <iframe id="sheetFrame" title="Google Sheet — Urgences compagnies (GESTION EASY + PREMIUM, Pierrick)" allow="clipboard-read; clipboard-write" referrerpolicy="no-referrer-when-downgrade"></iframe>
+        <iframe id="sheetFrame" title="Google Sheet — Urgences compagnies (GESTION EASY + PREMIUM, Pierrick)" allow="clipboard-read; clipboard-write"></iframe>
       </div>
     </div>
-  </section>
+  </div>
 
   <div class="pl-overlay" id="journalOverlay">
     <div class="pl-modal pl-modal-narrow" role="dialog" aria-modal="true" aria-labelledby="journalTitle">
