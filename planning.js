@@ -2256,5 +2256,28 @@ function enhanceStats(){
   ov.querySelector('[data-close="sheet"]').addEventListener('click', close);
   ov.addEventListener('click', e => { if(e.target === ov) close(); });
   document.getElementById('btnSheetReload').addEventListener('click', () => { frame.src = embedUrl(); });
+  // Taille d'affichage : on réduit (ou agrandit) toute la fenêtre du Sheet pour voir plus de colonnes.
+  // Le Sheet lui-même n'est pas modifié ; le choix est gardé sur chaque poste.
+  const ZOOMS = [50, 60, 70, 75, 80, 90, 100, 110, 125];
+  let zoom = parseInt(plLocal.get('pl-sheet-zoom', '100'), 10);
+  if(!ZOOMS.includes(zoom)) zoom = 100;
+  const zoomLabel = document.getElementById('btnSheetZoomReset');
+  function applyZoom(){
+    const f = zoom / 100;
+    frame.style.transform = f === 1 ? '' : 'scale(' + f + ')';
+    frame.style.width = (100 / f) + '%';
+    frame.style.height = (100 / f) + '%';
+    if(zoomLabel) zoomLabel.textContent = zoom + ' %';
+    plLocal.set('pl-sheet-zoom', String(zoom));
+  }
+  function stepZoom(dir){
+    const i = ZOOMS.indexOf(zoom);
+    zoom = ZOOMS[Math.max(0, Math.min(ZOOMS.length - 1, i + dir))];
+    applyZoom();
+  }
+  document.getElementById('btnSheetZoomOut').addEventListener('click', () => stepZoom(-1));
+  document.getElementById('btnSheetZoomIn').addEventListener('click', () => stepZoom(1));
+  if(zoomLabel) zoomLabel.addEventListener('click', () => { zoom = 100; applyZoom(); });
+  applyZoom();
   document.addEventListener('keydown', e => { if(e.key === 'Escape' && ov.classList.contains('open')) close(); });
 })();

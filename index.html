@@ -663,8 +663,12 @@
   .sheet-ib{ width:30px; height:30px; display:inline-flex; align-items:center; justify-content:center; border:1px solid transparent; border-radius:3px; background:transparent; color:var(--ink); font-size:15px; text-decoration:none; padding:0; }
   .sheet-ib:hover{ background:#fff; border-color:var(--line-strong); }
   .pl-modal-sheet .pl-close{ margin-left:6px; }
-  .sheet-frame-wrap{ flex:1; min-height:0; background:#fff; }
-  .sheet-frame-wrap iframe{ width:100%; height:100%; border:0; display:block; }
+  .sheet-frame-wrap{ flex:1; min-height:0; background:#fff; position:relative; overflow:hidden; }
+  .sheet-frame-wrap iframe{ position:absolute; top:0; left:0; width:100%; height:100%; border:0; display:block; transform-origin:0 0; }
+  .sheet-zoom{ display:flex; border:1px solid var(--line-strong); border-radius:var(--radius); overflow:hidden; }
+  .sheet-zoom button{ border:none; border-radius:0; background:#fff; color:var(--ink); padding:3px 9px; font-size:12.5px; min-width:30px; }
+  .sheet-zoom button:hover{ background:var(--paper); }
+  .sheet-zoom #btnSheetZoomReset{ min-width:54px; font-variant-numeric:tabular-nums; border-left:1px solid var(--line); border-right:1px solid var(--line); }
   @media (max-width:700px){
     .pl-actions{ margin-left:0; }
     .pl-side{ max-width:none; }
@@ -781,6 +785,11 @@
         <span class="hint">GESTION EASY + PREMIUM (Pierrick)</span>
         <span class="sheet-live"><span class="sheet-live-dot"></span>Enregistré en direct dans le Google Sheet</span>
         <label class="pl-check sheet-minimal"><input type="checkbox" id="sheetMinimal" /> Masquer les menus Google</label>
+        <div class="sheet-zoom" role="group" aria-label="Taille d'affichage du Sheet">
+          <button type="button" id="btnSheetZoomOut" title="Réduire l'affichage (voir plus de colonnes)" aria-label="Réduire l'affichage">−</button>
+          <button type="button" id="btnSheetZoomReset" title="Revenir à 100 %">100 %</button>
+          <button type="button" id="btnSheetZoomIn" title="Agrandir l'affichage" aria-label="Agrandir l'affichage">+</button>
+        </div>
         <div class="sheet-icons">
           <button type="button" class="sheet-ib" id="btnSheetReload" title="Recharger le Sheet" aria-label="Recharger le Sheet">↻</button>
           <a class="sheet-ib" id="sheetOpenLink" target="_blank" rel="noopener" title="Ouvrir dans Google Sheets (nouvel onglet)" aria-label="Ouvrir dans Google Sheets">↗</a>
