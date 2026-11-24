@@ -1,0 +1,888 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Planning</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%93%85%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-database-compat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root{
+    --paper:#F1EFE8;
+    --panel:#FAF9F5;
+    --ink:#242220;
+    --ink-soft:#6b6660;
+    --line:#DCD5C6;
+    --line-strong:#B9AF98;
+    --teal:#2F6F63;
+    --teal-bg:#E4EFEC;
+    --ochre:#B9702E;
+    --ochre-bg:#F6E9D9;
+    --violet:#5B4B8A;
+    --violet-bg:#EDE9F5;
+    --danger:#A23B2E;
+    --radius:3px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--paper);
+    color:var(--ink);
+    font-family:'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif;
+    -webkit-font-smoothing:antialiased;
+    min-height:100vh;
+  }
+  .wrap{ max-width:1060px; margin:0 auto; padding:28px 16px 60px; }
+  header{ margin-bottom:16px; }
+
+  .apptabs{ display:flex; gap:6px; flex-wrap:wrap; margin-bottom:18px; border-bottom:2px solid var(--line-strong); }
+  .apptab-btn{
+    font-family:'Fraunces', Georgia, serif; font-weight:600; font-size:16px;
+    background:none; border:none; padding:9px 4px; margin-right:16px; color:var(--ink-soft);
+    cursor:pointer; position:relative; top:2px; display:flex; align-items:center; gap:6px;
+  }
+  .apptab-btn.active{ color:var(--ink); border-bottom:3px solid var(--violet); }
+  .apptab-btn .apptab-del{
+    font-family:'IBM Plex Sans', sans-serif; font-size:11px; font-weight:400; color:var(--ink-soft);
+    opacity:0; background:none; border:none; padding:0 2px;
+  }
+  .apptab-btn:hover .apptab-del{ opacity:.7; }
+  .apptab-btn .apptab-del:hover{ opacity:1; color:var(--danger); }
+  .apptab-add{
+    font-family:'IBM Plex Sans', sans-serif; font-size:13px; font-weight:600; color:var(--ink-soft);
+    background:none; border:1px dashed var(--line-strong); border-radius:14px; padding:5px 12px;
+    cursor:pointer; align-self:center; margin-bottom:6px;
+  }
+  .apptab-add:hover{ color:var(--violet); border-color:var(--violet); }
+
+  table.custom-table{ border-collapse:collapse; width:100%; min-width:480px; font-size:13.5px; }
+  table.custom-table th, table.custom-table td{ border:1px solid var(--line); padding:0; }
+  table.custom-table thead th{
+    position:sticky; top:0; background:var(--panel); z-index:2; padding:0;
+  }
+  .custom-col-head{ display:flex; align-items:center; gap:4px; padding:8px 6px; }
+  .custom-col-head input{
+    flex:1; min-width:0; border:none; background:transparent; font-family:inherit;
+    font-size:13px; font-weight:700; color:var(--ink); padding:2px;
+  }
+  .custom-col-head input:focus{ outline:1px solid var(--violet); border-radius:2px; }
+  .custom-col-del{ flex-shrink:0; background:none; border:none; color:var(--ink-soft); cursor:pointer; font-size:12px; opacity:.5; }
+  .custom-col-del:hover{ opacity:1; color:var(--danger); }
+  td.custom-cell input{
+    width:100%; border:none; background:transparent; font-family:inherit; font-size:13.5px;
+    padding:9px 8px; color:var(--ink);
+  }
+  td.custom-cell input:focus{ outline:1px solid var(--violet); border-radius:2px; }
+  td.custom-row-actions{ text-align:center; width:36px; }
+
+  /* Planning Repas grid */
+  table.meal-table{ border-collapse:collapse; width:100%; min-width:600px; font-size:13px; }
+  table.meal-table th, table.meal-table td{ border:1px solid var(--line); padding:0; text-align:center; }
+  table.meal-table thead th{ position:sticky; top:0; background:var(--panel); z-index:2; padding:8px 4px; }
+  td.meal-date-cell{
+    position:sticky; left:0; background:var(--panel); padding:8px 10px; font-weight:600;
+    white-space:nowrap; text-align:center; z-index:1;
+  }
+  td.meal-date-cell .row-inner{ position:relative; display:flex; align-items:center; justify-content:center; }
+  td.meal-date-cell .remove-x{ position:absolute; right:0; opacity:0; }
+  tr:hover td.meal-date-cell .remove-x{ opacity:.6; }
+  td.meal-date-cell .remove-x:hover{ opacity:1 !important; color:var(--danger); }
+  th.meal-person-head{ position:relative; }
+  .meal-person-name{
+    display:inline-flex; align-items:center; gap:6px; font-weight:700; padding:4px 8px; border-radius:12px;
+  }
+  .meal-person-del{ background:none; border:none; color:inherit; opacity:.6; cursor:pointer; font-size:12px; padding:0 2px; }
+  .meal-person-del:hover{ opacity:1; }
+  td.meal-cell input{
+    width:100%; border:none; background:transparent; font-family:inherit; font-size:13px; font-weight:600;
+    text-align:center; padding:9px 4px; color:var(--ink);
+  }
+  td.meal-cell input:focus{ outline:1px solid var(--violet); border-radius:2px; }
+  td.meal-cell.filled{ }
+  td.meal-cell.empty input{ color:var(--ink-soft); }
+  td.meal-cell.meal-12{ background:var(--teal-bg); }
+  td.meal-cell.meal-12 input{ color:var(--teal); font-weight:700; }
+  td.meal-cell.meal-13{ background:#DCE8F7; }
+  td.meal-cell.meal-13 input{ color:#2F5C8A; font-weight:700; }
+  tr.meal-month-summary td{
+    background:var(--panel); border-top:2px solid var(--ink); font-weight:700; font-size:12.5px;
+    padding:8px 6px; color:var(--ink-soft);
+  }
+  tr.meal-month-summary td.meal-date-cell{ font-family:'Fraunces', Georgia, serif; color:var(--ink); }
+  tr.meal-week-sep td{
+    border-bottom:none; padding:8px 10px 2px; background:var(--paper); font-family:'Fraunces', Georgia, serif;
+    font-size:12.5px; color:var(--ink-soft); border-top:1.5px solid var(--line-strong); text-align:left;
+  }
+  tr.meal-today-row td{ background:var(--violet-bg) !important; box-shadow:inset 0 2px 0 var(--violet), inset 0 -2px 0 var(--violet); }
+  tr.meal-today-row td:first-child{ box-shadow:inset 2px 0 0 var(--violet), inset 0 2px 0 var(--violet), inset 0 -2px 0 var(--violet); }
+  tr.meal-today-row td:last-child{ box-shadow:inset -2px 0 0 var(--violet), inset 0 2px 0 var(--violet), inset 0 -2px 0 var(--violet); }
+  tr.meal-today-row td.meal-date-cell{ color:var(--violet); font-weight:800; }
+
+  /* Suivi Excel (import EASY_SUIVI : une ligne par jour, colonnes = indicateurs) */
+  table.suivi-table{ border-collapse:collapse; width:100%; min-width:1400px; font-size:12.5px; }
+  table.suivi-table th, table.suivi-table td{ border:1px solid var(--line); padding:0; text-align:center; }
+  table.suivi-table thead th{ position:sticky; top:0; background:var(--panel); z-index:2; padding:8px 6px; white-space:nowrap; font-size:11.5px; }
+  td.suivi-date-cell{
+    position:sticky; left:0; background:var(--panel); padding:8px 10px; font-weight:600;
+    white-space:nowrap; text-align:center; z-index:1;
+  }
+  td.suivi-date-cell .row-inner{ position:relative; display:flex; align-items:center; justify-content:center; }
+  td.suivi-date-cell .remove-x{ position:absolute; right:0; opacity:0; }
+  tr:hover td.suivi-date-cell .remove-x{ opacity:.6; }
+  td.suivi-date-cell .remove-x:hover{ opacity:1 !important; color:var(--danger); }
+  td.suivi-cell{ padding:0; }
+  td.suivi-cell input{
+    width:100%; min-width:76px; border:none; background:transparent; font-family:inherit; font-size:12.5px; font-weight:600;
+    text-align:center; padding:9px 4px; color:var(--ink);
+  }
+  td.suivi-cell input:focus{ outline:1px solid var(--violet); border-radius:2px; }
+  td.suivi-cell.suivi-formula{ font-weight:700; font-style:italic; color:var(--ink-soft); background:var(--teal-bg); padding:9px 4px; }
+  tr.suivi-month-summary td{
+    background:var(--panel); border-top:2px solid var(--ink); font-weight:700; font-size:11.5px;
+    padding:8px 4px; color:var(--ink-soft);
+  }
+  tr.suivi-month-summary td.suivi-date-cell{ font-family:'Fraunces', Georgia, serif; color:var(--ink); }
+  tr.suivi-week-sep td{
+    border-bottom:none; padding:8px 10px 2px; background:var(--paper); font-family:'Fraunces', Georgia, serif;
+    font-size:12.5px; color:var(--ink-soft); border-top:1.5px solid var(--line-strong); text-align:left;
+  }
+  tr.suivi-today-row td{ background:var(--violet-bg) !important; box-shadow:inset 0 2px 0 var(--violet), inset 0 -2px 0 var(--violet); }
+  tr.suivi-today-row td:first-child{ box-shadow:inset 2px 0 0 var(--violet), inset 0 2px 0 var(--violet), inset 0 -2px 0 var(--violet); }
+  tr.suivi-today-row td:last-child{ box-shadow:inset -2px 0 0 var(--violet), inset 0 2px 0 var(--violet), inset 0 -2px 0 var(--violet); }
+  tr.suivi-today-row td.suivi-date-cell{ color:var(--violet); font-weight:800; }
+
+  /* Avenants WF (checklist importé depuis Excel) */
+  table.checklist-table{ border-collapse:collapse; width:100%; min-width:420px; font-size:13.5px; }
+  table.checklist-table th, table.checklist-table td{ border:1px solid var(--line); padding:0; }
+  table.checklist-table thead th{ position:sticky; top:0; background:var(--panel); z-index:2; padding:10px; text-align:left; font-weight:600; }
+  td.checklist-text{ padding:0; }
+  td.checklist-text input{
+    width:100%; border:none; background:transparent; font-family:inherit; font-size:13.5px;
+    padding:10px 12px; color:var(--ink);
+  }
+  td.checklist-text input:focus{ outline:1px solid var(--violet); border-radius:2px; }
+  tr.checklist-done td.checklist-text{ background:var(--teal-bg); }
+  tr.checklist-done td.checklist-text input{ color:var(--teal); text-decoration:line-through; text-decoration-color:var(--teal); opacity:.85; }
+  td.checklist-check{ text-align:center; width:70px; }
+  td.checklist-check input[type="checkbox"]{ width:20px; height:20px; cursor:pointer; accent-color:var(--teal); }
+  td.checklist-row-actions{ text-align:center; width:36px; }
+
+  /* Planning Tel (créneaux horaires en colonnes) */
+  table.phone-table{ border-collapse:collapse; width:100%; min-width:640px; font-size:13px; }
+  table.phone-table th, table.phone-table td{ border:1px solid var(--line); padding:0; text-align:center; }
+  table.phone-table thead th{ position:sticky; top:0; background:var(--panel); z-index:2; padding:6px 4px; }
+  .phone-slot-head{ display:flex; align-items:center; justify-content:center; gap:4px; font-weight:700; }
+  .phone-slot-head input{
+    width:70px; border:none; background:transparent; font-family:inherit; font-size:12.5px; font-weight:700;
+    text-align:center; color:var(--ink); padding:2px;
+  }
+  .phone-slot-head input:focus{ outline:1px solid var(--violet); border-radius:2px; }
+  .phone-slot-del{ background:none; border:none; color:var(--ink-soft); cursor:pointer; font-size:12px; opacity:.5; flex-shrink:0; }
+  .phone-slot-del:hover{ opacity:1; color:var(--danger); }
+  td.phone-date-cell{
+    position:sticky; left:0; background:var(--panel); padding:8px 10px; font-weight:600;
+    white-space:nowrap; z-index:1;
+  }
+  td.phone-date-cell .row-inner{ position:relative; display:flex; align-items:center; justify-content:center; }
+  td.phone-date-cell .remove-x{ position:absolute; right:0; opacity:0; }
+  tr:hover td.phone-date-cell .remove-x{ opacity:.6; }
+  td.phone-date-cell .remove-x:hover{ opacity:1 !important; color:var(--danger); }
+  td.phone-cell{ padding:0; }
+  td.phone-cell input{
+    width:100%; border:none; background:transparent; font-family:inherit; font-size:12.5px; font-weight:700;
+    text-align:center; padding:9px 4px; color:var(--ink-soft);
+  }
+  td.phone-cell input:focus{ outline:1px solid var(--violet); border-radius:2px; }
+  tr.phone-today-row td{ background:var(--violet-bg) !important; box-shadow:inset 0 2px 0 var(--violet), inset 0 -2px 0 var(--violet); }
+  tr.phone-today-row td:first-child{ box-shadow:inset 2px 0 0 var(--violet), inset 0 2px 0 var(--violet), inset 0 -2px 0 var(--violet); }
+  tr.phone-today-row td:last-child{ box-shadow:inset -2px 0 0 var(--violet), inset 0 2px 0 var(--violet), inset 0 -2px 0 var(--violet); }
+  tr.phone-today-row td.phone-date-cell{ color:var(--violet); font-weight:800; }
+  .phone-today-badge{
+    display:inline-block; background:var(--violet); color:#fff; font-size:10px; font-weight:800;
+    letter-spacing:.03em; padding:2px 7px; border-radius:10px; margin-left:6px; vertical-align:middle;
+  }
+  tr.phone-week-sep td{
+    border-bottom:none; padding:8px 10px 2px; background:var(--paper); font-family:'Fraunces', Georgia, serif;
+    font-size:12.5px; color:var(--ink-soft); border-top:1.5px solid var(--line-strong); text-align:left;
+  }
+  .meal-today-badge{
+    display:inline-block; background:var(--violet); color:#fff; font-size:10px; font-weight:800;
+    letter-spacing:.03em; padding:2px 7px; border-radius:10px; margin-left:6px; vertical-align:middle;
+  }
+  h1{ font-family:'Fraunces', Georgia, serif; font-weight:600; font-size:clamp(26px,5vw,34px); margin:0 0 4px; letter-spacing:-0.01em; }
+  .subtitle{ color:var(--ink-soft); font-size:14px; margin:0; line-height:1.5; }
+
+  /* day bar / history */
+  .daybar{
+    display:flex; gap:6px; flex-wrap:wrap; align-items:center;
+    background:var(--panel); border:1px solid var(--line-strong); border-radius:var(--radius);
+    padding:10px; margin:16px 0 12px;
+  }
+  .day-pill{
+    display:inline-flex; align-items:center; gap:6px;
+    background:#fff; border:1px solid var(--line-strong); border-radius:20px;
+    padding:6px 10px; font-size:12.5px; cursor:pointer; color:var(--ink-soft);
+    white-space:nowrap;
+  }
+  .day-pill:hover{ border-color:var(--violet); }
+  .day-pill.active{ background:var(--violet); border-color:var(--violet); color:#fff; font-weight:600; }
+  .day-pill .mini-count{ font-size:11px; opacity:.85; }
+  .day-pill .day-del{ background:none; border:none; color:inherit; opacity:.6; cursor:pointer; font-size:12px; padding:0 2px; }
+  .day-pill .day-del:hover{ opacity:1; }
+  .btn-newday{
+    background:var(--ink); color:#fff; border:none; border-radius:20px; padding:7px 14px;
+    font-size:12.5px; font-weight:600; cursor:pointer; white-space:nowrap;
+  }
+  .btn-newday:hover{ background:#3a3733; }
+
+  .archive-banner{
+    display:flex; align-items:center; gap:8px; background:var(--ochre-bg); color:#7a4c1f;
+    border:1px solid var(--ochre); border-radius:var(--radius); padding:9px 14px; font-size:12.5px;
+    margin:0 0 12px;
+  }
+
+  .undo-toast{
+    position:fixed; left:50%; bottom:22px; transform:translateX(-50%);
+    background:var(--ink); color:#fff; border-radius:20px; padding:10px 10px 10px 16px;
+    display:flex; align-items:center; gap:12px; font-size:13px; box-shadow:0 6px 18px rgba(0,0,0,.25);
+    z-index:50; animation: toastIn .2s ease-out;
+  }
+  .undo-toast button{
+    background:#fff; color:var(--ink); border:none; border-radius:14px; padding:6px 12px;
+    font-weight:700; font-size:12.5px; cursor:pointer;
+  }
+  @keyframes toastIn{ from{ opacity:0; transform:translate(-50%,8px); } to{ opacity:1; transform:translate(-50%,0); } }
+
+  .toolbar{ display:flex; flex-wrap:wrap; gap:8px; margin:10px 0 6px; align-items:center; }
+  button{ font-family:inherit; font-size:13.5px; cursor:pointer; border-radius:var(--radius); }
+  .btn{ background:var(--panel); border:1px solid var(--line-strong); color:var(--ink); padding:7px 12px; transition:background .12s ease, border-color .12s ease; }
+  .btn:hover{ background:#fff; border-color:var(--violet); }
+  .btn-ghost{ background:transparent; border:1px solid transparent; color:var(--ink-soft); text-decoration:underline; text-underline-offset:2px; padding:7px 4px; }
+  .btn-ghost:hover{ color:var(--danger); }
+
+  .status{ font-size:12.5px; color:var(--ink-soft); min-height:18px; margin:2px 0 10px; }
+  .status.saving{ color:var(--violet); }
+  .status.error{ color:var(--danger); }
+
+  /* filters */
+  .filters{ display:flex; flex-wrap:wrap; gap:8px; margin:6px 0 14px; }
+  .filters select{
+    font-family:inherit; font-size:12.5px; padding:6px 10px; border:1px solid var(--line-strong);
+    border-radius:20px; background:#fff; color:var(--ink); cursor:pointer;
+  }
+  .filters select:focus{ outline:1px solid var(--violet); }
+
+  .legend{ display:flex; flex-wrap:wrap; gap:14px; margin:0 2px 16px; font-size:12.5px; color:var(--ink-soft); }
+  .legend span{ display:inline-flex; align-items:center; gap:6px; }
+  .swatch{ width:10px; height:10px; border-radius:2px; display:inline-block; }
+
+  .team-objectif{
+    background:var(--panel); border:1px solid var(--line-strong); border-radius:var(--radius);
+    padding:18px 20px; margin-bottom:16px; display:flex; align-items:center; gap:22px; flex-wrap:wrap;
+  }
+  .today-ring{ flex-shrink:0; }
+  .today-ring .ring-pct{ font-family:'Fraunces', Georgia, serif; font-weight:600; font-size:20px; fill:var(--ink); }
+  .today-info .today-date{ font-family:'Fraunces', Georgia, serif; font-weight:600; font-size:18px; margin-bottom:4px; }
+  .today-info .today-nums{ font-size:13.5px; color:var(--ink-soft); margin-bottom:8px; }
+  .today-info .today-nums b{ color:var(--ink); font-weight:700; }
+  .team-objectif .label{ font-size:12.5px; color:var(--ink-soft); }
+  .cat-badges-row{ flex-basis:100%; display:flex; flex-wrap:wrap; gap:6px; margin-top:2px; }
+  .cat-badge{
+    display:inline-flex; align-items:center; gap:4px; background:#fff; border:1px solid var(--line-strong);
+    border-radius:12px; padding:4px 10px; font-size:11.5px; color:var(--ink-soft); white-space:nowrap;
+  }
+  .cat-badge b{ color:var(--ink); font-weight:700; }
+  .cat-badge-total{ background:var(--ink); border-color:var(--ink); color:#fff; }
+  .cat-badge-total b{ color:#fff; }
+  .bar-track{ background:var(--line); border-radius:2px; height:8px; overflow:hidden; margin-bottom:4px; }
+  .bar-fill{ height:100%; background:var(--ochre); transition:width .2s ease; }
+  .bar-fill.reached{ background:var(--teal); }
+  .bar-caption{ font-size:11.5px; color:var(--ink-soft); }
+
+  /* micro-animation when a task is marked Fait */
+  @keyframes rowPulse{
+    0%{ box-shadow: inset 0 0 0 0 rgba(47,111,99,0); }
+    30%{ box-shadow: inset 0 0 0 999px rgba(47,111,99,.22); }
+    100%{ box-shadow: inset 0 0 0 999px rgba(47,111,99,0); }
+  }
+  tr.task-row.just-done{ animation: rowPulse .7s ease-out; }
+  @keyframes checkPop{
+    0%{ transform: scale(0); opacity:0; }
+    55%{ transform: scale(1.3); opacity:1; }
+    100%{ transform: scale(1); opacity:1; }
+  }
+
+  .table-shell{ background:var(--panel); border:1px solid var(--line-strong); border-radius:var(--radius); overflow-x:auto; }
+  table{ border-collapse:collapse; width:100%; min-width:720px; font-size:13.5px; }
+  thead th{ position:sticky; top:0; background:var(--panel); z-index:2; text-align:left; font-weight:600; padding:12px 10px; border-bottom:1.5px solid var(--line-strong); white-space:nowrap; }
+  tbody td{ padding:0; border-bottom:1px solid var(--line); vertical-align:middle; }
+
+  tr.task-row.row-rose{ background:#F2D0CA; }
+  tr.task-row.row-peche{ background:#FBE3C4; }
+  tr.task-row.row-bleu{ background:#C9D8EB; }
+  tr.task-row.row-empty{ background:transparent; }
+  tr.task-row:hover{ filter:brightness(0.98); }
+  tr.task-row.group-start td{ border-top:2px solid var(--line-strong); }
+
+  select.priority-select{ width:100%; border:none; background:transparent; font-family:inherit; font-size:13px; font-weight:700; padding:10px 4px; cursor:pointer; text-align:center; text-align-last:center; appearance:none; -webkit-appearance:none; }
+  select.priority-select.pr-rose{ color:#9C4A3E; }
+  select.priority-select.pr-peche{ color:#A8721E; }
+  select.priority-select.pr-bleu{ color:#3C5C82; }
+  select.priority-select.pr-empty{ color:var(--ink-soft); }
+
+  td.task-name{ padding:0; font-weight:500; min-width:230px; max-width:340px; }
+  td.task-name .tn-in{ display:flex; align-items:center; gap:6px; padding:10px; }
+  .priority-dot{
+    flex-shrink:0; width:15px; height:15px; border-radius:50%; padding:0; cursor:pointer;
+    border:1.5px solid var(--line-strong); box-shadow:inset 0 0 0 1px rgba(0,0,0,.05);
+  }
+  .priority-dot:hover{ border-color:var(--violet); transform:scale(1.12); }
+  .priority-dot:disabled{ cursor:not-allowed; }
+  td.task-name input{ flex:1; min-width:0; border:none; background:transparent; font-family:inherit; font-size:13.5px; font-weight:500; padding:2px; color:var(--ink); text-transform:uppercase; }
+  td.task-name input:focus{ outline:1px solid var(--violet); border-radius:2px; }
+  .multimode-toggle{
+    flex-shrink:0; background:none; border:1px solid var(--line-strong); border-radius:4px;
+    width:22px; height:22px; font-size:13px; line-height:1; cursor:pointer; color:var(--ink-soft);
+    display:flex; align-items:center; justify-content:center; padding:0;
+  }
+  .multimode-toggle:hover{ border-color:var(--violet); color:var(--violet); }
+
+  td.checklist-cell{ padding:8px; text-align:center; }
+  .checklist-group{ display:inline-flex; flex-wrap:wrap; gap:8px; align-items:center; justify-content:center; }
+  .checklist-item{
+    display:inline-flex; align-items:center; gap:5px; border:1px solid var(--line-strong); border-radius:14px;
+    padding:5px 12px 5px 9px; font-size:12px; font-weight:600; color:var(--ink-soft); background:#fff; cursor:pointer;
+    transition:border-color .15s ease, box-shadow .15s ease;
+  }
+  .checklist-item:hover{ border-color:var(--violet); }
+  .checklist-item input{ margin:0; cursor:pointer; }
+
+  td.person-slot-cell{ min-width:110px; padding:4px; text-align:center; }
+  select.person-slot-select{
+    width:auto; min-width:76px; max-width:96%; border:none; font-family:inherit; font-size:12.5px; font-weight:700;
+    padding:8px 14px; cursor:pointer; text-align:center; text-align-last:center;
+    appearance:none; -webkit-appearance:none; border-radius:14px; display:inline-block; margin:2px 0;
+    color:var(--ink-soft); background:transparent; letter-spacing:.2px;
+  }
+  select.person-slot-select.has-person{ color:#fff; box-shadow:inset 0 0 0 1px rgba(0,0,0,.06); }
+
+  select.status-select{
+    width:auto; min-width:76px; max-width:96%; border:none; font-family:inherit; font-size:12.5px; font-weight:700;
+    padding:8px 14px; cursor:pointer; text-align:center; text-align-last:center;
+    appearance:none; -webkit-appearance:none; border-radius:14px; display:inline-block; margin:2px 0;
+    letter-spacing:.2px; box-shadow:inset 0 0 0 1px rgba(0,0,0,.06);
+  }
+  select.status-select.st-fait{ background:var(--teal); color:#fff; }
+  select.status-select.st-afaire{ background:var(--ochre); color:#fff; }
+  select.status-select.st-empty{ background:#fff; color:var(--ink-soft); box-shadow:inset 0 0 0 1px var(--line-strong); }
+  td.status-cell{ position:relative; text-align:center; }
+  .status-check{
+    position:absolute; top:50%; right:6px; transform:translateY(-50%);
+    color:var(--teal); font-weight:800; font-size:15px; pointer-events:none;
+    animation: checkPop .45s ease-out;
+  }
+
+  input.obj-input{ width:66px; border:none; background:transparent; font-family:inherit; font-size:13.5px; font-weight:700; padding:10px 4px; text-align:center; color:var(--ink); }
+  input.obj-input:focus{ outline:1px solid var(--violet); border-radius:2px; }
+  input.obj-input:disabled{ opacity:.45; cursor:not-allowed; }
+  td.obj-cell{ text-align:center; }
+
+  button.remove-x{ opacity:.5; color:var(--ink-soft); background:none; border:none; font-size:14px; padding:6px 10px; cursor:pointer; }
+  button.remove-x:hover{ opacity:1; color:var(--danger); }
+
+  .summary{ margin-top:28px; }
+  .summary h2{ font-family:'Fraunces', Georgia, serif; font-weight:600; font-size:19px; margin:0 0 4px; }
+  .summary .hint{ color:var(--ink-soft); font-size:12.5px; margin:0 0 14px; }
+
+  .summary-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:10px; }
+  .stat-card{ background:var(--panel); border:1px solid var(--line-strong); border-radius:var(--radius); padding:14px 16px; }
+  .stat-card .stat-name{ font-size:12.5px; color:var(--ink-soft); margin-bottom:6px; display:flex; align-items:center; gap:6px; }
+  .stat-card .stat-value{ font-family:'Fraunces', Georgia, serif; font-weight:600; font-size:26px; }
+
+  table#categoryTotalsTable td{ border:1px solid var(--line); padding:7px 12px; }
+  table#categoryTotalsTable td.cat-label{ color:var(--ink-soft); }
+  table#categoryTotalsTable td.cat-value{ text-align:right; font-weight:700; }
+  table#categoryTotalsTable tr.cat-total td{ border-top:2px solid var(--ink); font-weight:800; background:var(--panel); }
+
+  table.stats-matrix{ border-collapse:collapse; width:100%; font-size:12.5px; min-width:600px; }
+  table.stats-matrix th, table.stats-matrix td{ border:1px solid var(--line); padding:6px 8px; text-align:center; white-space:nowrap; }
+  table.stats-matrix thead th{ position:sticky; top:0; background:var(--panel); z-index:2; font-weight:700; }
+  table.stats-matrix td.stats-task-name{ text-align:left; text-transform:uppercase; font-weight:500; position:sticky; left:0; background:var(--panel); max-width:220px; overflow:hidden; text-overflow:ellipsis; }
+  table.stats-matrix td.stats-count-0{ color:var(--line-strong); }
+  table.stats-matrix td.stats-count-hi{ background:var(--teal-bg); color:var(--teal); font-weight:700; }
+
+  .journal-entry{ display:flex; gap:10px; padding:8px 4px; border-bottom:1px solid var(--line); font-size:12.5px; }
+  .journal-entry .journal-time{ color:var(--ink-soft); flex-shrink:0; width:90px; }
+  .journal-entry .journal-name{ font-weight:700; flex-shrink:0; }
+  .journal-entry:last-child{ border-bottom:none; }
+  .bar-row{ display:flex; align-items:center; gap:10px; margin-bottom:10px; font-size:12.5px; }
+  .bar-row .bar-label{ width:130px; flex-shrink:0; color:var(--ink-soft); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; display:flex; align-items:center; }
+  .bar-row .bar-track{ flex:1; margin-bottom:0; }
+  .bar-row .bar-count{ width:70px; text-align:right; color:var(--ink-soft); flex-shrink:0; }
+  .bar-row .person-obj-input{
+    width:52px; font-family:inherit; font-size:12.5px; text-align:center; padding:3px 4px;
+    border:1px solid var(--line-strong); border-radius:2px; background:#fff; color:var(--ink); flex-shrink:0;
+  }
+  .bar-row .person-obj-input:focus{ outline:1px solid var(--violet); }
+  .bar-row .person-obj-input:disabled{ opacity:.45; cursor:not-allowed; }
+
+  .empty-note{ padding:24px; color:var(--ink-soft); font-size:13.5px; }
+  footer{ margin-top:26px; font-size:12px; color:var(--ink-soft); border-top:1px solid var(--line); padding-top:12px; }
+
+  /* Une seule ligne : les cases se serrent pour tenir côte à côte ; si l'écran est vraiment trop étroit (téléphone), la ligne défile horizontalement au lieu de passer à la ligne. */
+  .urgences-inputs{ display:flex; flex-wrap:nowrap; gap:6px; overflow-x:auto; padding-bottom:2px; }
+  .urgence-input-row{
+    display:flex; align-items:center; gap:6px; background:#fff; border:1px solid var(--line-strong);
+    border-radius:var(--radius); padding:6px 8px; flex:1 1 auto; min-width:0; justify-content:space-between;
+  }
+  .urgence-input-row.urgence-total-row{ flex:0 0 auto; }
+  .urgence-input-row .urg-name{ font-size:13px; font-weight:600; color:var(--ink); display:flex; align-items:center; white-space:nowrap; min-width:0; }
+  .urgence-input-row input{
+    width:42px; flex:0 0 auto; text-align:center; border:1px solid var(--line-strong); border-radius:2px; padding:5px 4px;
+    font-family:inherit; font-size:13px; background:var(--paper); color:var(--ink);
+  }
+  .urgence-input-row input:focus{ outline:1px solid var(--violet); }
+  .urgence-input-row input:disabled{ opacity:.45; cursor:not-allowed; }
+  .urgence-input-row.urgence-total-row{ background:var(--panel); border-color:var(--ink); }
+  .urgence-input-row.urgence-total-row .urg-name{ font-weight:800; }
+  .urgence-input-row .urg-total-value{ width:32px; text-align:center; font-weight:800; color:var(--ink); }
+
+  @media (max-width:520px){
+    .wrap{ padding:20px 10px 50px; }
+    td.task-name{ min-width:170px; max-width:200px; }
+  }
+
+  /* =====================================================================
+     NOUVELLE MISE EN PAGE (compacte) — ajoutée en fin de feuille : elle
+     remplace les réglages ci-dessus pour l'onglet Planning.
+     ===================================================================== */
+  .wrap{ max-width:1440px; padding:12px 20px 40px; }
+  .apptabs{ margin-bottom:10px; }
+  .apptab-btn{ font-size:15px; padding:7px 4px; }
+
+  .info-dot{
+    display:inline-flex; align-items:center; justify-content:center; width:17px; height:17px; border-radius:50%;
+    border:1px solid var(--line-strong); color:var(--ink-soft); font:600 11px 'IBM Plex Sans', sans-serif;
+    cursor:help; vertical-align:middle; background:var(--panel); flex-shrink:0;
+  }
+
+  /* En-tête : titre + jours + superviseur sur une ligne */
+  .pl-head{ display:flex; align-items:center; gap:14px; flex-wrap:wrap; margin-bottom:10px; }
+  .pl-title{ display:flex; align-items:center; gap:7px; }
+  .pl-title h1{ font-size:24px; margin:0; }
+  .pl-head .daybar{ background:none; border:none; padding:0; margin:0; gap:5px; }
+  .pl-head .day-pill{ padding:4px 10px; font-size:12px; }
+  .pl-head .btn-newday{ padding:5px 12px; font-size:12px; }
+  .pl-head-right{ margin-left:auto; display:flex; align-items:center; gap:10px; }
+  .pl-head-right .status{ margin:0; min-height:0; }
+  .pl-head-right .btn{ font-size:12.5px; padding:5px 10px; }
+  #archivePanel{ margin:0 0 10px !important; }
+  .pl-head .pl-head-right{ order:2; }
+  .pl-head #archivePanel{ order:5; flex-basis:100%; margin:0 !important; }
+  .archive-banner{ margin:0 0 10px; }
+  #avent{ margin-bottom:10px; }
+
+  /* Barre d'outils */
+  .pl-toolbar{
+    display:flex; align-items:center; gap:8px; flex-wrap:wrap; background:var(--panel);
+    border:1px solid var(--line-strong); border-radius:var(--radius); padding:7px 10px; margin-bottom:12px;
+  }
+  .pl-search{ display:flex; align-items:center; gap:6px; background:#fff; border:1px solid var(--line); border-radius:var(--radius); padding:4px 8px; width:220px; color:var(--ink-soft); }
+  .pl-search input{ border:none; outline:none; background:transparent; font:inherit; font-size:12.5px; width:100%; color:var(--ink); }
+  .pl-search:focus-within{ border-color:var(--violet); }
+  .pl-toolbar .filters{ margin:0; gap:6px; }
+  .pl-toolbar .filters select{ border-radius:var(--radius); padding:4px 6px; }
+  .pl-check{ display:flex; align-items:center; gap:6px; font-size:12.5px; cursor:pointer; padding:0 4px; }
+  .pl-check input{ margin:0; accent-color:var(--teal); }
+  .pl-seg{ display:flex; border:1px solid var(--line-strong); border-radius:var(--radius); overflow:hidden; }
+  .pl-seg button{ border:none; border-radius:0; background:#fff; color:var(--ink); padding:4px 10px; font-size:12px; }
+  .pl-seg button.on{ background:var(--violet); color:#fff; font-weight:600; }
+  .pl-actions{ margin-left:auto; display:flex; gap:6px; align-items:center; flex-wrap:wrap; }
+  .pl-actions .btn{ font-size:12.5px; padding:5px 11px; }
+  .btn-primary{ background:var(--ink) !important; border-color:var(--ink) !important; color:#fff !important; font-weight:600; }
+  .btn-primary:hover{ background:#3a3733 !important; }
+  .pl-more{ position:relative; }
+  .pl-more-menu{
+    display:none; position:absolute; right:0; top:calc(100% + 4px); z-index:30; background:#fff; border:1px solid var(--line-strong);
+    border-radius:var(--radius); box-shadow:0 8px 20px rgba(0,0,0,.14); padding:4px; min-width:260px; flex-direction:column;
+  }
+  .pl-more-menu.open{ display:flex; }
+  .btn-menu{ text-align:left; border:none; background:none; padding:7px 10px; font-size:12.5px; color:var(--ink); border-radius:2px; }
+  .btn-menu:hover{ background:var(--paper); }
+  .btn-menu:disabled{ opacity:.45; cursor:not-allowed; }
+  .btn-menu-danger{ color:var(--danger); }
+  .pl-menu-sep{ height:1px; background:var(--line); margin:4px 0; }
+
+  /* Corps : tableau à gauche, résumé à droite */
+  .pl-main{ display:flex; flex-wrap:wrap; gap:14px; align-items:flex-start; }
+  .pl-left{ flex:999 1 640px; min-width:0; }
+  .pl-side{ flex:1 1 380px; max-width:430px; min-width:0; display:flex; flex-direction:column; gap:12px; }
+  .kbd-hint{ font-size:11.5px; color:var(--ink-soft); margin:6px 2px 0; }
+  kbd{ font:600 10.5px 'IBM Plex Sans', sans-serif; border:1px solid var(--line-strong); border-bottom-width:2px; border-radius:3px; padding:0 4px; background:#fff; color:var(--ink); }
+
+  /* Tableau des tâches */
+  #tableShell table{ min-width:620px; font-size:13px; }
+  #tableShell thead th{ padding:7px 10px; font-size:12px; color:var(--ink-soft); }
+  #tableShell tbody td{ border-bottom:1px solid rgba(0,0,0,.06); }
+  tr.task-row.row-rose{ background:#F6E0DB; }
+  tr.task-row.row-peche{ background:#FCEDD9; }
+  tr.task-row.row-bleu{ background:#DFE8F3; }
+  tr.task-row.group-start td{ border-top:none; }
+  td.task-name{ min-width:220px; max-width:none; width:auto; }
+  td.task-name .tn-in{ padding:4px 10px; }
+  td.task-name input{ font-size:13px; text-overflow:ellipsis; }
+  tr.task-row.is-done td.task-name input{ color:var(--ink-soft); text-decoration:line-through; text-decoration-color:var(--line-strong); }
+  .priority-dot{ width:12px; height:12px; }
+  td.team-cell{ padding:2px 8px; text-align:left; width:330px; }
+  .team-in{ display:flex; align-items:center; gap:4px; flex-wrap:wrap; }
+  td.team-cell.team-multi .team-in{ flex-wrap:nowrap; }
+  select.person-slot-select{ padding:3px 10px; margin:0; font-size:11.5px; min-width:0; max-width:none; border-radius:11px; }
+  select.person-slot-select.slot-add{
+    width:22px; height:22px; padding:0; border-radius:50%; border:1px dashed var(--line-strong); background:transparent;
+    color:var(--ink-soft); font-size:14px; font-weight:600; text-align:center; text-align-last:center; line-height:1;
+  }
+  select.person-slot-select.slot-add:hover, select.person-slot-select.slot-add:focus{ border-color:var(--violet); color:var(--violet); }
+  td.checklist-cell{ padding:3px 8px; text-align:left; }
+  .checklist-group{ justify-content:flex-start; gap:4px; flex-wrap:nowrap; }
+  .checklist-item{ padding:2px 8px 2px 6px; font-size:11.5px; border-radius:11px; white-space:nowrap; }
+  td.status-cell{ width:100px; }
+  select.status-select{ padding:3px 10px; margin:0; font-size:11.5px; min-width:70px; border-radius:11px; }
+  td.obj-cell{ width:70px; }
+  input.obj-input{ padding:5px 4px; font-size:13px; width:56px; }
+  #tableShell button.remove-x{ padding:3px 8px; }
+  tr.grp-head td{ padding:0; border-top:1.5px solid var(--line-strong); background:#EFEBE1; }
+  .grp-btn{
+    display:flex; align-items:center; gap:8px; width:100%; border:none; background:transparent; padding:5px 10px;
+    font-size:12.5px; font-weight:600; color:var(--ink); text-align:left; border-radius:0;
+  }
+  .grp-btn .chev{ transition:transform .15s ease; color:var(--ink-soft); font-size:10px; width:10px; display:inline-block; }
+  .grp-btn[aria-expanded="true"] .chev{ transform:rotate(90deg); }
+  .grp-dot{ width:10px; height:10px; border-radius:50%; flex-shrink:0; border:1px solid rgba(0,0,0,.12); }
+  .grp-bar{ margin-left:auto; width:120px; height:5px; background:var(--line); border-radius:3px; overflow:hidden; }
+  .grp-bar span{ display:block; height:100%; background:var(--teal); }
+
+  /* Mode « Confort » : on retrouve les grandes lignes d'avant */
+  body.dens-confort td.task-name .tn-in{ padding:10px; }
+  body.dens-confort td.team-cell{ padding:6px 8px; }
+  body.dens-confort select.person-slot-select{ padding:7px 14px; font-size:12.5px; border-radius:14px; }
+  body.dens-confort select.person-slot-select.slot-add{ width:30px; height:30px; padding:0; }
+  body.dens-confort select.status-select{ padding:7px 14px; font-size:12.5px; border-radius:14px; }
+  body.dens-confort input.obj-input{ padding:10px 4px; }
+
+  /* Colonne de droite */
+  .pl-side .team-objectif{ margin:0; padding:12px 14px; gap:12px; }
+  .pl-side .today-ring svg{ width:60px; height:60px; }
+  .pl-side .today-info{ flex:1; min-width:0; }
+  .pl-side .today-info .today-date{ font-size:15px; }
+  .pl-side .today-info .today-nums{ font-size:12.5px; margin-bottom:6px; }
+  .pl-side .today-info .bar-track{ width:100% !important; }
+  .pl-side .cat-badges-row{ display:grid; grid-template-columns:repeat(auto-fill, minmax(92px,1fr)); gap:4px; }
+  .pl-side .cat-badge{ flex-direction:column; align-items:flex-start; gap:0; border-radius:3px; padding:3px 7px; font-size:10px; letter-spacing:.02em; white-space:nowrap; overflow:hidden; }
+  .pl-side .cat-badge b{ font-size:13px; }
+  .pl-side #btnReportSuivi{ grid-column:1 / -1; justify-self:start; margin:2px 0 0 !important; padding:2px 0; font-size:12px; }
+  .side-card{ margin:0; background:var(--panel); border:1px solid var(--line-strong); border-radius:var(--radius); padding:12px 14px; }
+  .pl-side h2, .pl-side .impaye-head h2{ font-size:15px !important; margin:0 0 8px; display:flex; align-items:center; gap:6px; }
+  .pl-side .urgences-inputs{ display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:4px 8px; overflow:visible; }
+  .pl-side .urgence-input-row{ padding:3px 6px; }
+  .pl-side .urgence-input-row .urg-name{ font-size:12.5px; }
+  .pl-side .urgence-input-row input{ width:44px; padding:3px 4px; font-size:12.5px; }
+  .pl-side .urgence-input-row.urgence-total-row{ grid-column:1 / -1; }
+  .pl-side #urgencesPanel .btn{ font-size:12px; padding:4px 9px; }
+  .pl-side #urgencesPanel > div[style*="margin"]{ margin:0 0 8px !important; }
+  .pl-side .bar-row{ margin-bottom:6px; gap:8px; }
+  .pl-side .bar-row .bar-label{ width:84px; }
+  .pl-side .bar-row .bar-track{ height:6px; }
+  .pl-side .bar-row .bar-count{ width:56px; }
+  .pl-side .bar-row .person-obj-input{ width:44px; }
+  .pl-side .suivi-row{ flex-direction:column; gap:12px; margin-top:0; }
+  .pl-side .suivi-row > .impaye-card, .pl-side .impaye-card{
+    flex:none; width:100%; max-width:none; margin:0; background:var(--panel); border:1px solid var(--line-strong);
+    border-radius:var(--radius); padding:12px 14px;
+  }
+  .pl-side .impaye-head{ margin-bottom:6px; }
+  .pl-side .impaye-head h2{ margin:0; }
+  .pl-side .impaye-table input[type=date]{ font-size:12px; }
+  .pl-side .impaye-actions .btn, .pl-side .impaye-actions .btn-ghost{ font-size:12px; padding:3px 8px; }
+
+  /* Fenêtres (Statistiques, Journal) */
+  .pl-overlay{
+    position:fixed; inset:0; z-index:60; background:rgba(36,34,32,.45); display:none;
+    align-items:flex-start; justify-content:center; padding:32px 20px;
+  }
+  .pl-overlay.open{ display:flex; }
+  body.pl-modal-open{ overflow:hidden; }
+  .pl-modal{
+    position:relative; width:100%; max-width:1320px; max-height:calc(100vh - 64px); overflow:auto;
+    background:var(--paper); border:1px solid var(--line-strong); border-radius:4px; box-shadow:0 18px 50px rgba(0,0,0,.3);
+  }
+  .pl-modal-narrow{ max-width:760px; }
+  .pl-modal-head{
+    position:sticky; top:0; z-index:5; background:var(--panel); border-bottom:1px solid var(--line-strong);
+    padding:10px 16px; display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+  }
+  .pl-modal-head h2{ font-family:'Fraunces', Georgia, serif; font-weight:600; font-size:18px; margin:0; }
+  .pl-modal-head .hint{ font-size:12px; color:var(--ink-soft); }
+  .pl-modal-nav{ display:flex; gap:4px; flex-wrap:wrap; }
+  .pl-modal-nav a{ font-size:11.5px; padding:3px 9px; border:1px solid var(--line); border-radius:12px; background:#fff; color:var(--ink); text-decoration:none; }
+  .pl-modal-nav a:hover{ border-color:var(--violet); color:var(--violet); }
+  .pl-close{ margin-left:auto; width:30px; height:30px; border-radius:50% !important; border:1px solid var(--line-strong); background:#fff; color:var(--ink); font-size:13px; padding:0; flex-shrink:0; }
+  .pl-close:hover{ border-color:var(--danger); color:var(--danger); }
+  .pl-modal .summary{ margin:0; padding:14px 16px 18px; }
+  #journalList{ max-height:none; }
+  .stat-block{ margin-bottom:16px; min-width:0; scroll-margin-top:60px; }
+  .stat-block h3{ font-family:'Fraunces', Georgia, serif; font-weight:600; font-size:15px; margin:0 0 8px; display:flex; align-items:center; gap:6px; }
+  .stat-block .summary-grid{ grid-template-columns:repeat(auto-fill, minmax(130px,1fr)); gap:6px; margin-bottom:8px !important; }
+  .stat-block .stat-card{ padding:6px 10px; display:flex; align-items:center; justify-content:space-between; gap:6px; }
+  .stat-block .stat-card .stat-name{ margin:0; }
+  .stat-block .stat-card .stat-value{ font-size:18px; }
+  .stats-grid{ display:grid; grid-template-columns:repeat(auto-fit, minmax(520px, 1fr)); gap:16px; }
+  .stats-grid .stat-block{ margin:0; }
+  #statsAvenantsFixBar{ margin-top:6px !important; }
+  table.stats-matrix td.heat{ transition:background .2s ease; }
+  .stats-chart{ background:var(--panel); border:1px solid var(--line-strong); border-radius:var(--radius); padding:10px 12px; }
+  .stats-chart svg{ display:block; width:100%; height:auto; }
+  .chart-legend{ display:flex; gap:16px; flex-wrap:wrap; font-size:12px; color:var(--ink-soft); margin-top:4px; }
+  .chart-legend span{ display:inline-flex; align-items:center; gap:6px; }
+  .chart-legend i{ display:inline-block; width:18px; height:0; border-top-width:3px; border-top-style:solid; }
+
+  @media (max-width:700px){
+    .pl-actions{ margin-left:0; }
+    .pl-side{ max-width:none; }
+    .stats-grid{ grid-template-columns:1fr; }
+    .pl-overlay{ padding:0; }
+    .pl-modal{ max-height:100vh; border-radius:0; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="apptabs" id="appTabs"></div>
+
+  <section id="app-tab-planning" class="app-tab-section">
+  <header class="pl-head">
+    <div class="pl-title">
+      <h1>Planning</h1>
+      <span class="info-dot" tabindex="0" title="Liste de tâches par jour : statut, priorité, personnes assignées et objectif. Chaque nouveau jour repart à zéro sur les statuts, mais l'historique des jours précédents reste consultable.">i</span>
+    </div>
+    <div class="daybar" id="dayBar"></div>
+    <div class="pl-head-right">
+      <div class="status" id="status"></div>
+      <button class="btn" id="btnToggleAdmin">🔒 Mode superviseur</button>
+    </div>
+  </header>
+
+  <div class="archive-banner" id="archiveBanner" style="display:none;">
+    🔒 Ce n'est pas la date du jour — lecture seule. Seul le superviseur peut le modifier.
+  </div>
+
+  <div class="pl-toolbar" role="toolbar" aria-label="Filtres et actions">
+    <label class="pl-search">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg>
+      <input type="search" id="filterSearch" placeholder="Rechercher une tâche…" aria-label="Rechercher une tâche" autocomplete="off" />
+    </label>
+    <div class="filters">
+      <select id="filterPerson" aria-label="Filtrer par personne"><option value="">Toutes les personnes</option></select>
+      <select id="filterPriority" aria-label="Filtrer par couleur" style="display:none;">
+        <option value="">Toutes les couleurs</option>
+        <option value="rose">Rose</option>
+        <option value="peche">Pêche</option>
+        <option value="bleu">Bleu</option>
+        <option value="none">Sans couleur</option>
+      </select>
+      <select id="filterStatus" aria-label="Filtrer par statut">
+        <option value="">Tous les statuts</option>
+        <option value="fait">Fait</option>
+        <option value="afaire">À faire</option>
+        <option value="none">Non défini</option>
+      </select>
+    </div>
+    <label class="pl-check"><input type="checkbox" id="filterHideDone" /> Masquer les faites</label>
+    <div class="pl-seg" role="group" aria-label="Densité">
+      <button type="button" data-density="compact">Compact</button>
+      <button type="button" data-density="confort">Confort</button>
+    </div>
+    <div class="pl-actions">
+      <button class="btn btn-primary" id="btnAddTask">+ Tâche</button>
+      <button class="btn" id="btnAddPerson">+ Personne</button>
+      <button class="btn" id="btnStats">📊 Statistiques</button>
+      <button class="btn" id="btnJournal">🕒 Journal</button>
+      <div class="pl-more">
+        <button class="btn" id="btnMore" aria-haspopup="true" aria-expanded="false">Plus ▾</button>
+        <div class="pl-more-menu" id="moreMenu" role="menu">
+          <button class="btn-menu" id="btnExport" role="menuitem">⬇️ Exporter ce jour</button>
+          <button class="btn-menu" id="btnImport" role="menuitem">⬆️ Importer</button>
+          <button class="btn-menu" id="btnExportAll" role="menuitem" title="Sauvegarde complète : Planning + tous les onglets (Suivi Excel, Avenants WF, etc.)">💾 Tout exporter (sauvegarde complète)</button>
+          <button class="btn-menu" id="btnAddPersonEverywhere" role="menuitem" title="Réservé au superviseur">👥 Ajouter une gestionnaire partout</button>
+          <div class="pl-menu-sep"></div>
+          <button class="btn-menu btn-menu-danger" id="btnClearDay" role="menuitem">Vider les statuts de ce jour</button>
+        </div>
+      </div>
+    </div>
+    <input type="file" id="importFileInput" accept="application/json" style="display:none;" />
+  </div>
+
+  <div class="pl-main">
+    <div class="pl-left">
+      <div class="table-shell" id="tableShell">
+        <div class="empty-note">Chargement…</div>
+      </div>
+      <p class="kbd-hint">Raccourcis : clique sur un statut ou une personne d'une ligne, puis <kbd>F</kbd> = Fait, <kbd>A</kbd> = À faire, <kbd>↑</kbd> <kbd>↓</kbd> = ligne précédente / suivante.</p>
+    </div>
+
+    <aside class="pl-side" aria-label="Résumé du jour">
+      <div class="team-objectif" id="teamObjectif" style="display:none"></div>
+
+      <div class="summary side-card" id="urgencesPanel" style="display:none;">
+        <h2>🚨 Urgences du jour <span class="info-dot" tabindex="0" title="Indique ici, jour par jour, le nombre d'urgences traitées par chacun. Chaque saisie s'additionne automatiquement au total du mois dans les statistiques, sans passer par une tâche partagée.">i</span></h2>
+        <div id="urgencesInputs" class="urgences-inputs"></div>
+      </div>
+
+      <div class="summary side-card" id="summaryByPerson" style="display:none">
+        <h2>Objectif par personne <span class="info-dot" tabindex="0" title="Le volume « fait » vient des tâches du jour ; l'objectif (à droite) est modifiable pour chaque personne.">i</span></h2>
+        <div id="barsByPerson"></div>
+      </div>
+
+      <div class="impaye-card" id="impayeCard">
+        <div class="empty-note">Chargement…</div>
+      </div>
+    </aside>
+  </div>
+
+  <div class="pl-overlay" id="journalOverlay">
+    <div class="pl-modal pl-modal-narrow" role="dialog" aria-modal="true" aria-labelledby="journalTitle">
+      <div class="pl-modal-head">
+        <h2 id="journalTitle">Journal des modifications</h2>
+        <span class="hint">les 100 dernières actions</span>
+        <button class="btn-ghost" id="btnChangeMyName" style="font-size:12px;">✏️ Changer mon prénom affiché</button>
+        <button class="pl-close" data-close="journal" aria-label="Fermer">✕</button>
+      </div>
+      <div class="summary" id="journalPanel">
+        <div id="journalLoading" class="empty-note" style="display:none;">Chargement…</div>
+        <div id="journalList"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="pl-overlay" id="statsOverlay">
+    <div class="pl-modal" role="dialog" aria-modal="true" aria-labelledby="statsTitle">
+      <div class="pl-modal-head">
+        <h2 id="statsTitle">Statistiques</h2>
+        <span class="hint">sur tout l'historique</span>
+        <nav class="pl-modal-nav" aria-label="Aller à">
+          <a href="#stEvolution">Évolution</a>
+          <a href="#stTaches">Répartition</a>
+          <a href="#stEchanges">Échanges clients</a>
+          <a href="#stUrgences">Urgences</a>
+          <a href="#stAvenants">Avenants WF</a>
+          <a href="#stMed">Mises en demeure</a>
+          <a href="#stImpayes">Impayés</a>
+        </nav>
+        <button class="pl-close" data-close="stats" aria-label="Fermer">✕</button>
+      </div>
+      <div class="summary" id="statsPanel">
+        <div id="statsLoading" class="empty-note" style="display:none;">Calcul en cours…</div>
+
+        <section class="stat-block" id="stEvolution">
+          <h3>Évolution par mois <span class="info-dot" tabindex="0" title="Total du mois pour les échanges clients, les urgences et les impayés traités (même chiffres que les tableaux ci-dessous).">i</span></h3>
+          <div id="statsChart" class="stats-chart"></div>
+        </section>
+
+        <section class="stat-block" id="stTaches">
+          <h3>Répartition des tâches <span class="info-dot" tabindex="0" title="Sur tout l'historique disponible : nombre de fois où chaque tâche a été marquée « Fait » par chaque personne.">i</span></h3>
+          <div id="statsTotals" class="summary-grid"></div>
+          <div class="table-shell" id="statsTableShell" style="overflow:auto; max-height:380px;"></div>
+        </section>
+
+        <div class="stats-grid">
+          <section class="stat-block" id="stEchanges">
+            <h3>Échanges clients par personne et par mois <span class="info-dot" tabindex="0" title="Le chiffre saisi dans « Nombre » sur les tâches Échange client, partagé entre les personnes assignées quand elles sont plusieurs sur la même tâche.">i</span></h3>
+            <div class="table-shell" id="statsEchangesShell" style="overflow:auto; max-height:360px;"></div>
+          </section>
+          <section class="stat-block" id="stUrgences">
+            <h3>Urgences par personne et par mois <span class="info-dot" tabindex="0" title="Basé sur la saisie quotidienne du bloc « Urgences du jour » : chacun indique son propre nombre d'urgences traitées chaque jour, additionné automatiquement sur le mois.">i</span></h3>
+            <div class="table-shell" id="statsUrgencesShell" style="overflow:auto; max-height:360px;"></div>
+          </section>
+          <section class="stat-block" id="stAvenants">
+            <h3>Avenants WF par personne et par mois <span class="info-dot" tabindex="0" title="Nombre de lignes cochées « Fait » dans l'onglet Avenants WF, par la personne indiquée dans « Fait par ». Le compteur ne baisse pas quand des lignes sont supprimées.">i</span></h3>
+            <div class="table-shell" id="statsAvenantsShell" style="overflow:auto; max-height:360px;"></div>
+          </section>
+          <section class="stat-block" id="stMed">
+            <h3>Mises en demeure par personne et par mois <span class="info-dot" tabindex="0" title="Chiffres du « Suivi mises en demeure » ; pour les mois sans saisie dans ce tableau, somme des « Nombre » de la tâche « Mise en demeure » du Planning.">i</span></h3>
+            <div class="table-shell" id="statsMedShell" style="overflow:auto; max-height:360px;"></div>
+          </section>
+          <section class="stat-block" id="stImpayes">
+            <h3>Impayés par personne et par mois <span class="info-dot" tabindex="0" title="Somme des nombres saisis dans le Suivi impayé, par personne indiquée dans « Fait par » et par mois de la date de la ligne. « À faire » : lignes pas encore faites. « Sans nom » : lignes faites sans prénom.">i</span></h3>
+            <div class="table-shell" id="statsImpayeShell" style="overflow:auto; max-height:360px;"></div>
+          </section>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    Données stockées côté Firebase, visibles par toute personne utilisant cet outil.
+    <span> · </span><button class="btn-ghost" id="btnResetAll" style="font-size:12px; opacity:.45;" title="Réservé au superviseur">Réinitialiser tout l'outil</button>
+  </footer>
+  </section>
+
+  <section id="app-tab-custom" class="app-tab-section" style="display:none;">
+    <header>
+      <h1 id="customTabTitle">Onglet</h1>
+      <p class="subtitle">Tableau libre : ajoute des colonnes et des lignes selon ce que tu veux y suivre.</p>
+    </header>
+    <div class="toolbar">
+      <button class="btn" id="btnRenameTab">✏️ Renommer l'onglet</button>
+      <button class="btn" id="btnAddColumn">+ Ajouter une colonne</button>
+      <button class="btn" id="btnAddRow">+ Ajouter une ligne</button>
+      <button class="btn" id="btnAddMealDate" style="display:none;">+ Ajouter une date</button>
+      <button class="btn" id="btnAddMealMonth" style="display:none;">+ Ajouter un mois (lun-ven)</button>
+      <button class="btn" id="btnSaveMealTemplate" style="display:none;">💾 Enregistrer ce planning comme modèle</button>
+      <button class="btn" id="btnAddMealPerson" style="display:none;">+ Ajouter une personne</button>
+      <button class="btn" id="btnAddChecklistRow" style="display:none;">+ Ajouter une ligne</button>
+      <button class="btn" id="btnImportExcel" style="display:none;">📥 Importer un fichier Excel</button>
+      <input type="file" id="excelFileInput" accept=".xlsx,.xls,.csv" style="display:none;" />
+      <button class="btn" id="btnAddPhoneDate" style="display:none;">+ Ajouter une date</button>
+      <button class="btn" id="btnAddPhoneMonth" style="display:none;">+ Ajouter un mois (lun-ven)</button>
+      <button class="btn" id="btnAddPhoneSlot" style="display:none;">+ Ajouter un créneau</button>
+      <button class="btn" id="btnAddPhonePerson" style="display:none;">+ Ajouter une personne</button>
+      <button class="btn" id="btnRenamePhonePerson" style="display:none;">✏️ Renommer une personne</button>
+      <button class="btn" id="btnSavePhoneTemplate" style="display:none;">💾 Enregistrer ce planning comme modèle</button>
+      <button class="btn" id="btnAddSuiviDate" style="display:none;">+ Ajouter une date</button>
+      <button class="btn" id="btnImportSuiviExcel" style="display:none;">📥 Importer le fichier EASY_SUIVI</button>
+      <button class="btn" id="btnExportSuivi" style="display:none;">⬇️ Exporter en Excel</button>
+      <input type="file" id="suiviExcelFileInput" accept=".xlsx,.xls" style="display:none;" />
+      <button class="btn-ghost" id="btnConvertMealPlanning" style="opacity:.7;">🍽️ Transformer en Planning Repas</button>
+      <button class="btn-ghost" id="btnConvertChecklist" style="opacity:.7;">📋 Transformer en Avenants WF</button>
+      <button class="btn-ghost" id="btnConvertPhonePlanning" style="opacity:.7;">📞 Transformer en Planning Tel</button>
+      <button class="btn-ghost" id="btnConvertSuivi" style="opacity:.7;">🧮 Transformer en Suivi Excel</button>
+      <button class="btn-ghost" id="btnDeleteTab" style="margin-left:auto; opacity:.45;" title="Réservé au superviseur">Supprimer cet onglet</button>
+    </div>
+    <div class="status" id="customStatus"></div>
+    <div class="table-shell" id="customTableShell">
+      <div class="empty-note">Chargement…</div>
+    </div>
+  </section>
+</div>
+
+<script>
+(function(){
+  var v = Date.now(); // change à chaque chargement de page : force le re-téléchargement
+  var scripts = ['shared.js', 'planning.js', 'customtabs.js', 'impaye.js', 'saisons.js', 'avent-data.js', 'avent.js']; // impaye.js puis saisons.js en dernier : s'ils manquaient, le reste du site marcherait quand même
+  var i = 0;
+  function loadNext(){
+    if(i >= scripts.length) return;
+    var s = document.createElement('script');
+    s.src = scripts[i] + '?v=' + v;
+    s.onload = function(){ i++; loadNext(); };
+    s.onerror = function(){ console.error('Échec du chargement de ' + scripts[i]); };
+    document.body.appendChild(s);
+  }
+  loadNext();
+})();
+</script>
+</body>
+</html>
