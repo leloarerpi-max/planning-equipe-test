@@ -1042,9 +1042,9 @@ function renderSummary(){
       const dot = v.color ? `<i style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${v.color};margin-right:6px;flex-shrink:0;"></i>` : '';
       const targetInput = v.id ? `<input type="number" min="0" class="person-obj-input" data-person="${v.id}" value="${v.target}" placeholder="—" ${isAdmin?'':'disabled title="Réservé au superviseur"'} />` : `<span style="width:52px;display:inline-block;text-align:center;color:var(--ink-soft);">—</span>`;
       const doneDisplay = Number.isInteger(v.done) ? v.done : v.done.toFixed(1);
-      const isPresent = splitPresentSet().has(v.id);
+      const isPresent = isAdmin && splitPresentSet().has(v.id);
       return `<div class="bar-row${isPresent ? ' split-on' : ''}" data-person-row="${v.id||''}">
-        <div class="bar-label${isAdmin ? ' split-pick' : ''}" ${isAdmin ? `data-split="${v.id}" title="Cliquer : personne présente (l'objectif se calcule tout seul)"` : ''}>${dot}${isPresent ? '✓ ' : ''}${escapeHtml(v.name)}</div>
+        <div class="bar-label${isAdmin ? ' split-pick' : ''}" ${isAdmin ? `data-split="${v.id}" title="Cliquer : personne présente. L'objectif se calcule tout seul (total à répartir : ${splitDayTotal()})"` : ''}>${dot}${isPresent ? '✓ ' : ''}${escapeHtml(v.name)}</div>
         <div class="bar-track"><div class="bar-fill ${r2?'reached':''}" style="width:${p2}%"></div></div>
         <div class="bar-count">${doneDisplay}${hasTarget ? ' / '+v.target : ''}</div>
         ${targetInput}
@@ -1060,11 +1060,13 @@ function renderSummary(){
       dayData.targets = dayData.targets || {};
       // '' = objectif vidé pour ce jour (masque aussi l'ancienne valeur globale)
       dayData.targets[p.id] = inp.value === '' ? '' : Math.max(0, Number(inp.value));
+      splitLsSet('po-present:' + currentDate, '[]'); // saisie à la main : fin du calcul automatique pour ce jour
       await syncUrgences(); // fusionne avec les tâches du serveur puis enregistre (urgences + objectifs)
       updatePersonBarRowInPlace(p.id);
     });
   });
   wirePersonObjNav();
+  autoSplitIfNeeded();
 }
 
 
@@ -1089,8 +1091,7 @@ function splitDayTotal(){ return (dayData.tasks || []).reduce((sum, t) => sum + 
 function splitPresentSet(){
   const raw = splitLsGet('po-present:' + currentDate);
   if(raw !== null){ try{ return new Set(JSON.parse(raw)); } catch(e){} }
-  // pas de sélection mémorisée : les présents sont ceux qui ont déjà un objectif
-  return new Set(people.filter(p => { const v = targetForPerson(p); return v !== '' && Number(v) > 0; }).map(p => p.id));
+  return new Set(); // rien de coché tant que le superviseur n'a pas cliqué
 }
 function splitShares(total, ids){
   const n = ids.length; if(!n) return {};
@@ -1099,6 +1100,29 @@ function splitShares(total, ids){
   ids.forEach(id => { out[id] = base + (rest > 0 ? 1 : 0); if(rest > 0) rest--; });
   return out;
 }
+
+// Les objectifs suivent le total des tâches : si le total change (« Nombre » modifié, tâche ajoutée…),
+// les objectifs des personnes cochées sont recalculés automatiquement.
+let splitAutoBusy = false;
+function autoSplitIfNeeded(){
+  if(!isAdmin || splitAutoBusy) return;
+  const pres = people.map(p => p.id).filter(id => splitPresentSet().has(id));
+  if(!pres.length) return;
+  const sh = splitShares(splitDayTotal(), pres);
+  let diff = false;
+  people.forEach(p => {
+    const want = (p.id in sh) ? sh[p.id] : '';
+    const cur = targetForPerson(p); const curN = (cur === '' || cur == null) ? '' : Number(cur);
+    if(curN !== want) diff = true;
+  });
+  if(!diff) return;
+  splitAutoBusy = true;
+  dayData.targets = dayData.targets || {};
+  people.forEach(p => { dayData.targets[p.id] = (p.id in sh) ? sh[p.id] : ''; });
+  renderSummary();
+  syncUrgences().finally(() => { splitAutoBusy = false; });
+}
+
 let splitClicksWired = false;
 function wireSplitClicks(){
   if(splitClicksWired) return;
